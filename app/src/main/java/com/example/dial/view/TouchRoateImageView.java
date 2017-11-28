@@ -1,9 +1,13 @@
 package com.example.dial.view;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
+import android.graphics.drawable.BitmapDrawable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.widget.ImageView;
 
@@ -27,14 +31,15 @@ public class TouchRoateImageView extends ImageView {
     private float curTouchY; // 当前触摸的y
     private float centerX; // 中心点x
     private float centerY; // 中心点y
+    private float scaleX; // 图片缩放倍数x
+    private float scaleY;// 图片缩放倍数y
     private float curDegree; // 当前角度
     private float changeDegree;
 
     public TouchRoateImageView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        setScaleType(ScaleType.FIT_CENTER);
+        setScaleType(ScaleType.MATRIX);// 重点
         m = new Matrix();
-
     }
 
     @Override
@@ -46,6 +51,21 @@ public class TouchRoateImageView extends ImageView {
         //高度和宽度一样
         heightMeasureSpec = widthMeasureSpec = MeasureSpec.makeMeasureSpec(childWidthSize, MeasureSpec.EXACTLY);
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        //修改图片大小
+        Bitmap bm = ((BitmapDrawable) getDrawable()).getBitmap();
+        float width = right - left;
+        float height = bottom - top;
+        float bmX = bm.getWidth();
+        float bmY = bm.getHeight();
+        scaleX = width / bmX;
+        scaleY = height / bmY;
+        m.setScale(scaleX, scaleY, 0f, 0f);
+        setImageMatrix(m);
     }
 
     @Override
@@ -78,13 +98,13 @@ public class TouchRoateImageView extends ImageView {
     }
 
     private void handleTouchMove() {
-        setScaleType(ScaleType.MATRIX);// 重点
         changeDegree = (float) getActionDegrees(centerX, centerY, saveX, saveY,
                 curTouchX, curTouchY);
         float tempDegree = (float) curDegree + changeDegree;
         if (tempDegree >= MIN_DEGREE && tempDegree <= MAX_DEGREE) {
             optimize(tempDegree);//优化变动
             m.setRotate(curDegree, centerX, centerY);
+            m.preScale(scaleX, scaleY, 0f, 0f);
             setImageMatrix(m);// 此方法会 调用invalidate() 从而重绘界面
         } else if (tempDegree <= MIN_DEGREE) {//转到最小角度时
             curDegree = MAX_DEGREE - 1;
@@ -204,6 +224,7 @@ public class TouchRoateImageView extends ImageView {
         if (curDegree >= MIN_DEGREE && curDegree <= MAX_DEGREE) {
             this.curDegree = curDegree;
             m.setRotate(curDegree, centerX, centerY);
+            m.preScale(scaleX, scaleY, 0f, 0f);
             setImageMatrix(m);
         }
 
